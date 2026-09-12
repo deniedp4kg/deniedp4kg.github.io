@@ -1,3 +1,10 @@
+---
+title: "K17 CTF Write-up: duplex"
+date: 2026-09-12 
+categories: [Write-ups, K17 CTF]
+tags: [web, k17]
+---
+
 # Duplex — K17 CTF Web Challenge Writeup
 
 > **Giải**: K17 CTF  
@@ -6,9 +13,21 @@
 > **Flag**: `K17{un4_p3t1t10_dupl3x_53n5u5...}`  
 > **Kỹ thuật**: HTTP Request Smuggling (CL Stripping) + CVE-2021-41773 (Apache Path Traversal → RCE)
 
+<img width="1637" height="71" alt="Screenshot 2026-09-12 172402" src="https://github.com/user-attachments/assets/56e530bc-9c93-4957-9069-09dff81686a0" />
+
+<img width="1787" height="625" alt="Screenshot 2026-09-12 171458" src="https://github.com/user-attachments/assets/8d72b115-cd42-4798-9d1f-bf85284156c2" />
+
+<img width="961" height="493" alt="Screenshot 2026-09-12 171624" src="https://github.com/user-attachments/assets/4a6fc9c8-9274-4303-923c-6c3cb123314d" />
+
+<img width="1810" height="828" alt="Screenshot 2026-09-12 171640" src="https://github.com/user-attachments/assets/6e84ff3f-6ff9-428c-b21f-92640f9633c7" />
+
+<img width="812" height="55" alt="Screenshot 2026-09-12 171658" src="https://github.com/user-attachments/assets/a112e99d-c12c-4596-baec-6c6038396e05" />
+
+<img width="1042" height="337" alt="Screenshot 2026-09-12 171703" src="https://github.com/user-attachments/assets/4e58ece6-8131-4d07-b5c5-b0f7447e5f0f" />
+
 ---
 
-## 📋 Mục lục
+## Mục lục
 
 1. [Tổng quan đề bài](#1-tổng-quan-đề-bài)
 2. [Phân tích kiến trúc](#2-phân-tích-kiến-trúc)
@@ -42,7 +61,9 @@ Truy cập trang web, ta thấy một trang HTML đơn giản:
 <p>Pars posterior vivit.</p>
 ```
 
-> 💡 **"Pars posterior vivit"** là tiếng Latin, nghĩa là **"Phần sau sống sót"** — đây là gợi ý rất lớn cho hướng giải, nhưng lúc đầu mình chưa nhận ra.
+<img width="1036" height="312" alt="Screenshot 2026-09-12 171833" src="https://github.com/user-attachments/assets/2293f7af-4432-4ff0-abfb-2d07c8491f96" />
+
+> **"Pars posterior vivit"** là tiếng Latin, nghĩa là **"Phần sau sống sót"** — đây là gợi ý rất lớn cho hướng giải, nhưng lúc đầu mình chưa nhận ra.
 
 **Mục tiêu**: Thực thi binary `/getflag` trên server để lấy flag.
 
@@ -115,10 +136,10 @@ ScriptAlias /cgi-bin/ "/usr/local/apache2/cgi-bin/"
 
 **Tóm tắt cấu hình nguy hiểm:**
 
-1. ✅ `Require all granted` trên `/` — cho phép truy cập mọi file trên filesystem
-2. ✅ `mod_cgid` được load — có thể thực thi CGI scripts
-3. ✅ `ScriptAlias /cgi-bin/` — tạo endpoint CGI
-4. ✅ Apache 2.4.49 — dính CVE-2021-41773
+1. `Require all granted` trên `/` — cho phép truy cập mọi file trên filesystem
+2. `mod_cgid` được load — có thể thực thi CGI scripts
+3. `ScriptAlias /cgi-bin/` — tạo endpoint CGI
+4. Apache 2.4.49 — dính CVE-2021-41773
 
 ### 2.3. CVE-2021-41773 — Apache Path Traversal
 
@@ -400,6 +421,8 @@ if __name__ == "__main__":
         print(f"Usage: python3 {sys.argv[0]} <host> <port>")
 ```
 
+<img width="1917" height="852" alt="Screenshot 2026-09-12 172125" src="https://github.com/user-attachments/assets/a3e88391-a1fd-4d13-8005-dbb3c6c9da1b" />
+
 ---
 
 ## 6. Thực thi và lấy Flag
@@ -444,7 +467,9 @@ K17{un4_p3t1t10_dupl3x_53n5u5...}
 0
 ```
 
-> 🚩 **Flag: `K17{un4_p3t1t10_dupl3x_53n5u5...}`**
+<img width="1907" height="687" alt="Screenshot 2026-09-12 172143" src="https://github.com/user-attachments/assets/9f969cbb-8edd-4e64-96d7-d8d5d70fe933" />
+
+> **Flag: `K17{un4_p3t1t10_dupl3x_53n5u5...}`**
 
 **Giải thích response:**
 - **Response 1**: Apache xử lý `POST /` → trả về trang index (Duplex) — body rỗng vì chunked terminator `0\r\n\r\n`

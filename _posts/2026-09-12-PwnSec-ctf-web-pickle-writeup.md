@@ -1,15 +1,24 @@
+---
+title: "PwnSec CTF Write-up: Pickle"
+date: 2026-09-12 
+categories: [Write-ups, PwnSec CTF]
+tags: [web, PwnSec]
+---
+
 # PwnSec CTF 2026 — Pickle (Web, Easy, 226 pts)
 
 > **Author:** P0uZ_Gh0sT  
 > **Category:** Web  
 > **Difficulty:** Easy  
-> **Solves:** 23  
-> **First Blood:** JordanSec  
 > **Flag:** `pwnsec{6a12c7c6e9f7c96e}`
+
+<img width="1542" height="742" alt="Screenshot 2026-09-12 231800" src="https://github.com/user-attachments/assets/40f49f35-93e0-44b5-a09f-031bb8a35d5c" />
+
+<img width="1425" height="85" alt="Screenshot 2026-09-12 232119" src="https://github.com/user-attachments/assets/db08f9d9-2e2e-4858-9e71-7085b5135fed" />
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Challenge Overview](#challenge-overview)
 - [Source Code Analysis](#source-code-analysis)
@@ -33,9 +42,9 @@
 
 ## Challenge Overview
 
-We're given a Flask web application called **"Time Capsule"** that accepts a base64-encoded Python pickle payload, validates it through multiple security layers, and then deserializes it using a restricted unpickler.
+Chúng ta được cung cấp một ứng dụng web Flask có tên là **"Time Capsule"**; ứng dụng này nhận một payload Python pickle đã được mã hóa base64, kiểm tra tính hợp lệ qua nhiều lớp bảo mật, và sau đó giải tuần tự hóa (deserialize) nó bằng một cơ chế unpickler bị hạn chế quyền hạn.
 
-The goal is to read the flag at `/app/flag.txt`.
+Mục tiêu là đọc flag tại `/app/flag.txt`.
 
 ```
 POST /restore
@@ -43,6 +52,10 @@ Content-Type: application/json
 
 {"payload": "<base64-encoded pickle>"}
 ```
+
+<img width="1916" height="802" alt="Screenshot 2026-09-12 232624" src="https://github.com/user-attachments/assets/4ce0cbaa-7335-4f13-b4f7-940a9757eb94" />
+
+<img width="1917" height="793" alt="Screenshot 2026-09-12 232629" src="https://github.com/user-attachments/assets/455cde98-4fb3-47aa-ac8b-da43a7777015" />
 
 ---
 
@@ -115,13 +128,13 @@ def new_capsule(owner="guest"):
 
 ### Security Layers
 
-The application implements **3 layers** of defense:
+Ứng dụng triển khai **3 lớp** phòng thủ:
 
 | # | Layer | Mechanism |
 |---|-------|-----------|
-| 1 | `BANNED_PATTERNS` | Raw byte substring check — blocks `b"."`, `b"os"`, `b"flag"`, etc. |
-| 2 | `BANNED_INSTRUCTION` | Disassembly check — blocks `REDUCE` opcode in `pickletools.dis()` output |
-| 3 | `RestrictedUnpickler` | Module whitelist — only `sessionstore` and `collections` allowed |
+| 1 | `BANNED_PATTERNS` | Kiểm tra chuỗi con byte thô — chặn `b"."`, `b"os"`, `b"flag"`, v.v. |
+| 2 | `BANNED_INSTRUCTION` | Kiểm tra mã phân rã — chặn mã lệnh `REDUCE` trong đầu ra của `pickletools.dis()` |
+| 3 | `RestrictedUnpickler` | Danh sách cho phép mô-đun — chỉ cho phép `sessionstore` và `collections` |
 
 ---
 
@@ -129,16 +142,13 @@ The application implements **3 layers** of defense:
 
 ### Layer 1: BANNED_PATTERNS — The Impossible Filter?
 
-The first thing that stands out is `b"."` in the banned patterns list. In pickle, **every valid pickle stream must end with the STOP opcode**, which is exactly `b"."` (`0x2e`).
-
+Điểm đáng chú ý đầu tiên là `b"."` trong danh sách các mẫu bị cấm. Trong pickle, **mọi luồng pickle hợp lệ đều phải kết thúc bằng mã lệnh STOP**, chính là `b"."` (`0x2e`).
 ```
 STOP = b"."  # opcode 0x2e — terminates pickle deserialization
 ```
 
-This means no valid pickle can pass the `check()` function... or can it?
-
-Looking at the error handling in `restore()`:
-
+Điều này có nghĩa là không một đối tượng pickle hợp lệ nào có thể vượt qua hàm `check()`... hay là có thể?
+Xét phần xử lý lỗi trong `restore()`:
 ```python
 with contextlib.redirect_stdout(buf):
     try:
@@ -147,11 +157,11 @@ with contextlib.redirect_stdout(buf):
         pass  # <— Exception is silently swallowed!
 ```
 
-**If we omit the STOP opcode**, the pickle VM will process all our opcodes, execute their side effects, and then crash with `EOFError` when it tries to read the next opcode. This exception is caught and ignored — but **any `print()` calls have already written to stdout**, which is captured by `redirect_stdout`.
+**Nếu bỏ qua mã lệnh STOP**, máy ảo pickle sẽ xử lý tất cả các mã lệnh của chúng ta, thực thi các tác dụng phụ của chúng, rồi gặp lỗi `EOFError` khi cố gắng đọc mã lệnh tiếp theo. Ngoại lệ này bị bắt và bỏ qua — nhưng **mọi lệnh `print()` đều đã ghi dữ liệu vào stdout**, và dữ liệu này đã được `redirect_stdout` ghi lại.
 
 ### Layer 2: REDUCE Disassembly Check
 
-The `REDUCE` opcode (`R`, `0x52`) is the standard way to call functions in pickle. It's checked via:
+Mã lệnh `REDUCE` (`R`, `0x52`) là cách tiêu chuẩn để gọi các hàm trong pickle. Nó được kiểm tra thông qua:
 
 ```python
 try:
@@ -163,7 +173,7 @@ except Exception:
     disassembled = "Error!"   # <— Falls through here!
 ```
 
-Without the STOP opcode, `pickletools.dis()` will **raise an exception** when it reaches EOF. The `except` branch catches it and sets `disassembled = "Error!"` — **completely skipping the REDUCE check**.
+Nếu thiếu mã lệnh STOP, `pickletools.dis()` sẽ **phát sinh ngoại lệ** khi gặp điểm kết thúc dữ liệu (EOF). Nhánh `except` sẽ bắt lấy ngoại lệ này và gán `disassembled = "Error!"` — qua đó **bỏ qua hoàn toàn bước kiểm tra REDUCE**.
 
 ### Layer 3: RestrictedUnpickler
 
@@ -177,30 +187,30 @@ class RestrictedUnpickler(pickle.Unpickler):
         return super().find_class(module, name)
 ```
 
-Only `sessionstore` and `collections` modules are allowed. We can't directly import `builtins`, `os`, or any other module.
+Chỉ các mô-đun `sessionstore` và `collections` mới được phép sử dụng. Chúng ta không thể trực tiếp import `builtins`, `os` hay bất kỳ mô-đun nào khác.
 
-However, `find_class(module, name)` internally calls `getattr(sys.modules[module], name)`. This means we can access **any attribute** of the allowed modules, including `__builtins__`!
+Tuy nhiên, `find_class(module, name)` thực hiện gọi `getattr(sys.modules[module], name)` ở bên trong. Điều này có nghĩa là chúng ta có thể truy cập **bất kỳ thuộc tính nào** của các module được cho phép, bao gồm cả `__builtins__`!
 
 ---
 
 ## Exploitation Strategy
 
-### Key Insight: Remove the STOP Opcode
+### Key Insight: Loại bỏ mã lệnh STOP
 
-By crafting a pickle stream **without the STOP opcode** (`0x2e`), we simultaneously bypass:
+Bằng cách tạo ra một luồng pickle **không chứa mã lệnh STOP** (`0x2e`), chúng ta đồng thời vượt qua được:
 
-1. ✅ `b"."` in `BANNED_PATTERNS` — byte `0x2e` simply doesn't exist in our payload
-2. ✅ `REDUCE` disassembly check — `pickletools.dis()` crashes, check is skipped
-3. ✅ Side effects still execute — `print()` output is captured before the crash
+1. `b"."` trong `BANNED_PATTERNS` — byte `0x2e` đơn giản là không tồn tại trong payload của chúng ta
+2. `REDUCE` disassembly check — `pickletools.dis()` crashes, Việc kiểm tra bị bỏ qua.
+3. Side effects vẫn được thực thi — `print()` output được capture lại trước khi crash.
 
 ```
 Normal pickle:   [opcodes...] + STOP(0x2e)  →  clean exit
 Our pickle:      [opcodes...]               →  EOFError (caught by except:pass)
 ```
 
-### Accessing Built-in Functions
+### Truy cập các hàm tích hợp sẵn
 
-In Python 3, every non-`__main__` module has `__builtins__` attribute set to `builtins.__dict__`. Since `sessionstore` is imported by `webapp.py`, we can access it:
+Trong Python 3, mọi module không phải là `__main__` đều có thuộc tính `__builtins__` được thiết lập là `builtins.__dict__`. Vì `sessionstore` được import bởi `webapp.py`, nên ta có thể truy cập nó:
 
 ```
 GLOBAL "sessionstore" "__builtins__"
@@ -208,29 +218,28 @@ GLOBAL "sessionstore" "__builtins__"
 → builtins.__dict__   (a dict containing open, print, list, bytes, ...)
 ```
 
-This passes `RestrictedUnpickler` because `"sessionstore"` is in `ALLOWED_MODULES`. ✅
+Trường hợp này vượt qua được `RestrictedUnpickler` vì `"sessionstore"` nằm trong `ALLOWED_MODULES`.
 
 ### The Capsule + Render Trick
 
-Now we have the builtins dict, but how do we extract functions from it? We can't use `dict["key"]` directly in pickle.
-
-Enter the `render()` function from `sessionstore`:
+Giờ chúng ta đã có dictionary `builtins`, nhưng làm thế nào để trích xuất các hàm từ nó? Chúng ta không thể sử dụng trực tiếp `dict["key"]` trong `pickle`.
+Hãy xem hàm `render()` từ `sessionstore`:
 
 ```python
 def render(record, key):
     return record.cache[key]   # <— dict lookup!
 ```
 
-If we create a `Capsule` object and **overwrite its `cache` attribute** with the builtins dict using the `BUILD` opcode, then:
+Nếu chúng ta tạo một đối tượng `Capsule` và **ghi đè thuộc tính `cache` của nó** bằng từ điển tích hợp (built-in dict) thông qua mã lệnh `BUILD`, thì:
 
 ```python
 render(capsule, "open")
 = capsule.cache["open"]
 = builtins.__dict__["open"]
-= <built-in function open>    # 🎯
+= <built-in function open>    # 
 ```
 
-The `BUILD` opcode calls `obj.__dict__.update(state)`, allowing us to set `capsule.cache = builtins_dict`:
+Mã lệnh `BUILD` gọi `obj.__dict__.update(state)`, cho phép chúng ta thiết lập `capsule.cache = builtins_dict`:
 
 ```
 GLOBAL "sessionstore" "Capsule"  →  Capsule class
@@ -244,9 +253,9 @@ BUILD                            →  capsule.cache = builtins_dict
 
 ### Building the Filename
 
-We need to open `flag.txt`, but both `b"flag"` and `b"."` are banned as raw byte substrings.
+Chúng ta cần mở `flag.txt`, nhưng cả `b"flag"` và `b"."` đều bị cấm dưới dạng chuỗi con byte thô.
 
-**Solution:** Build the filename at runtime using `bytes([int, int, ...])`:
+**Solution:** Tạo tên tệp tại thời điểm thực thi bằng cách sử dụng `bytes([int, int, ...])`:
 
 ```python
 bytes([102, 108, 97, 103, 46, 116, 120, 116])
@@ -254,7 +263,7 @@ bytes([102, 108, 97, 103, 46, 116, 120, 116])
 # = b"flag.txt"
 ```
 
-In the pickle bytecode, each integer is encoded with its own opcode prefix (`K` for `BININT1`), so `"flag"` never appears as contiguous bytes:
+Trong bytecode của pickle, mỗi số nguyên được mã hóa kèm theo tiền tố opcode riêng (ví dụ: `K` cho `BININT1`), do đó chuỗi `"flag"` không bao giờ xuất hiện dưới dạng các byte liền kề nhau:
 
 ```
 K\x66  K\x6c  K\x61  K\x67  ...
@@ -262,10 +271,10 @@ K\x66  K\x6c  K\x61  K\x67  ...
  Each int separated by 0x4b prefix → "flag" pattern broken!
 ```
 
-For the `.` character (byte value 46), we can't use `BININT1` because `K\x2e` contains `0x2e`. Instead, we use the `INT` opcode which encodes the number as ASCII text:
+Đối với ký tự `.` (có giá trị byte là 46), chúng ta không thể sử dụng `BININT1` vì `K\x2e` chứa `0x2e`. Thay vào đó, ta sử dụng mã lệnh `INT`, mã hóa số đó dưới dạng văn bản ASCII:
 
 ```
-INT opcode: I46\n  →  bytes: 0x49 0x34 0x36 0x0a  →  no 0x2e! ✅
+INT opcode: I46\n  →  bytes: 0x49 0x34 0x36 0x0a  →  no 0x2e! 
 ```
 
 ### Final Chain
@@ -274,7 +283,7 @@ INT opcode: I46\n  →  bytes: 0x49 0x34 0x36 0x0a  →  no 0x2e! ✅
 print(list(open(b"flag.txt")))
 ```
 
-Using chained `REDUCE` calls:
+Sử dụng các lệnh gọi `REDUCE` được nối chuỗi:
 
 ```
 Stack:   print → list → open → path
@@ -375,7 +384,7 @@ def main():
         d = r.json()
         print(json.dumps(d, indent=2))
         if d.get("ok"):
-            print(f"\n🏁 FLAG: {d['output'].strip()}")
+            print(f"\nFLAG: {d['output'].strip()}")
     else:
         print(f"Usage: python3 exploit.py http://<target>:9999")
 
@@ -400,23 +409,25 @@ $ python3 exploit.py https://7e08a50baea8f705.chal.ctf.ae
   "output": "['pwnsec{6a12c7c6e9f7c96e}\\n']\n"
 }
 
-🏁 FLAG: ['pwnsec{6a12c7c6e9f7c96e}\n']
+ FLAG: ['pwnsec{6a12c7c6e9f7c96e}\n']
 ```
 
-**`pwnsec{6a12c7c6e9f7c96e}`** 🎉
+**`pwnsec{6a12c7c6e9f7c96e}`** 
+
+<img width="1917" height="767" alt="Screenshot 2026-09-12 221500" src="https://github.com/user-attachments/assets/626ff8cb-a451-4387-bd9c-2d1a9dc83fc2" />
 
 ---
 
-## Key Takeaways
+## Bài học rút ra 
 
-1. **Pickle's STOP opcode is just a byte** — if your filter bans `b"."` (`0x2e`), you've accidentally banned the STOP opcode. But removing STOP doesn't prevent side effects from executing.
+1. **Mã opcode STOP của Pickle chỉ là một byte** — nếu bộ lọc của bạn cấm `b"."` (`0x2e`), bạn đã vô tình cấm opcode STOP. Nhưng việc loại bỏ STOP không ngăn được tác dụng phụ khi thực thi.
 
-2. **`except: pass` is dangerous** — silently swallowing exceptions after `pickle.load()` means any side effects (file reads, prints, network calls) persist even when deserialization "fails."
+2. **`ngoại trừ: pass` là nguy hiểm** — âm thầm nuốt các ngoại lệ sau `pickle.load()` có nghĩa là bất kỳ tác dụng phụ nào (đọc tệp, in, gọi mạng) vẫn tồn tại ngay cả khi quá trình khử lưu huỳnh "thất bại".
 
-3. **`__builtins__` is everywhere** — every Python module has `__builtins__` as an attribute. Whitelisting a module in a restricted unpickler doesn't just expose its public API — it exposes `builtins.__dict__` too.
+3. **`__buildins__` có ở khắp mọi nơi** — mọi mô-đun Python đều có `__buildins__` làm thuộc tính. Việc đưa một mô-đun vào danh sách trắng trong trình giải nén bị hạn chế không chỉ hiển thị API công khai của nó — nó còn hiển thị `buildins.__dict__`.
 
-4. **Byte-level filters are fragile** — checking `b"flag" in data` can be bypassed by constructing the string at runtime using integer byte values, concatenation, or encoding tricks.
+4. **Bộ lọc cấp byte rất dễ hỏng** — việc kiểm tra `b"cờ" trong dữ liệu` có thể bị bỏ qua bằng cách xây dựng chuỗi trong thời gian chạy bằng cách sử dụng các giá trị byte nguyên, nối hoặc thủ thuật mã hóa.
 
 ---
 
-*Writeup by kevin — PwnSec CTF 2026*
+*Writeup by thu4n_ph4t — PwnSec CTF 2026*

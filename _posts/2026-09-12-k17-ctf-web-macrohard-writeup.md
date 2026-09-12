@@ -1,4 +1,13 @@
-# 🏴 Macrohard Azuer — K17 CTF Web Writeup
+---
+title: "K17 CTF Write-up: macrohard-azuer"
+date: 2026-09-12 
+categories: [Write-ups, K17 CTF]
+tags: [web, k17]
+---
+
+# K17 CTF — macrohard-azuer
+
+# Macrohard Azuer — K17 CTF Web Writeup
 
 > **Challenge:** Macrohard Azuer  
 > **Category:** Web  
@@ -7,9 +16,13 @@
 > **Solves:** 1  
 > **Flag:** `K17{why_s0_blu3?}`
 
+<img width="935" height="457" alt="Screenshot 2026-09-12 173947" src="https://github.com/user-attachments/assets/f58869b2-ef40-4977-9fa9-2d47e26d3a21" />
+
+<img width="1517" height="55" alt="Screenshot 2026-09-12 173642" src="https://github.com/user-attachments/assets/f727973b-e151-4f2f-8f76-ba6e7f58ac1c" />
+
 ---
 
-## 📋 Mục lục
+## Mục lục
 
 - [Tổng quan đề bài](#tổng-quan-đề-bài)
 - [Phân tích kiến trúc hệ thống](#phân-tích-kiến-trúc-hệ-thống)
@@ -35,6 +48,8 @@
 - Một file **handout.zip** chứa toàn bộ source code
 
 Giao diện web giả lập **Azure Portal** với chức năng quản lý tổ chức (Organisation console), cho phép tạo member, cấu hình compute allocation, import records, và export dữ liệu.
+
+<img width="1917" height="812" alt="Screenshot 2026-09-12 174126" src="https://github.com/user-attachments/assets/1ecd600a-d355-497a-b249-38c6206978e0" />
 
 Flag nằm trong biến môi trường `FLAG` của server và chỉ được trả về qua endpoint `/console/export` khi thỏa mãn các điều kiện bảo vệ.
 
@@ -69,7 +84,7 @@ Từ file `docker-compose.yml`, hệ thống gồm 3 service:
 }
 ```
 
-> ⚠️ Vì `accounts.internal` luôn trả về `role: "member"` và `export_enabled: false`, nên theo flow bình thường, ta **không bao giờ** có thể lấy được flag.
+> Vì `accounts.internal` luôn trả về `role: "member"` và `export_enabled: false`, nên theo flow bình thường, ta **không bao giờ** có thể lấy được flag.
 
 ---
 
@@ -98,7 +113,7 @@ def console_export():
     if not settings.get("export_enabled"):             # ← Điều kiện 2
         return jsonify(error="export not enabled for this account"), 403
 
-    return jsonify(flag=FLAG)                          # ← 🏆 FLAG!
+    return jsonify(flag=FLAG)                          # ← FLAG!
 ```
 
 Để lấy flag, ta cần bypass **2 điều kiện**:
@@ -122,7 +137,7 @@ def console_permissions():
     if not account:
         return jsonify(error="no account selected"), 400
 
-    base = urljoin(API_BASE, account)                  # ← 🔥 Lỗ hổng ở đây
+    base = urljoin(API_BASE, account)                  # ← Lỗ hổng ở đây
     try:
         permissions = fetch(base, "permissions")
     except (OSError, ValueError):
@@ -179,7 +194,7 @@ url = urljoin("file:///tmp/users/attacker/", "permissions")
 
 Server sẽ **đọc file local** `/tmp/users/attacker/permissions` thay vì gọi API internal! Đây là lỗ hổng **SSRF (Server-Side Request Forgery)** qua `file://` protocol.
 
-> 💡 Tuy app không có internet access (backend network internal), nhưng `file://` protocol cho phép đọc file trên chính server — không cần kết nối mạng.
+> Tuy app không có internet access (backend network internal), nhưng `file://` protocol cho phép đọc file trên chính server — không cần kết nối mạng.
 
 Nhưng vấn đề là: **file `/tmp/users/attacker/permissions` không tồn tại trên server**. Ta cần cách nào đó để ghi file lên server tại đường dẫn mong muốn.
 
@@ -256,7 +271,7 @@ Giữa thời điểm file **được ghi** (`f.write(raw)`) và thời điểm 
 
 Ví dụ: upload file tên `permissions` với `account: "attacker"` → file ở `/tmp/users/attacker/permissions`
 
-Đây chính xác là đường dẫn mà SSRF cần đọc! 🎯
+Đây chính xác là đường dẫn mà SSRF cần đọc! 
 
 ---
 
@@ -292,10 +307,10 @@ Server sẽ đọc file `/tmp/users/attacker/permissions` và kiểm tra `permis
      "capacity": 1
    }
    ```
-   - `account: "attacker"` → match regex `^[A-Za-z0-9_-]{1,64}$` ✅
+   - `account: "attacker"` → match regex `^[A-Za-z0-9_-]{1,64}$` 
    - `role: "admin"` → giá trị ta cần server đọc được
-   - `vcpu`, `quota`, `capacity` → numbers, pass `apply_settings()` validation ✅
-   - File được ghi vào `/tmp/users/attacker/permissions` ✅
+   - `vcpu`, `quota`, `capacity` → numbers, pass `apply_settings()` validation 
+   - File được ghi vào `/tmp/users/attacker/permissions` 
 
 3. **Race condition:** Đồng thời gọi GET `/console/permissions` để đọc file trước khi nó bị xóa
 
@@ -303,7 +318,7 @@ Server sẽ đọc file `/tmp/users/attacker/permissions` và kiểm tra `permis
 Thread A (upload):     ──[write file]──[validate]──[delete file]──
 Thread B (check):           ──────[GET /console/permissions]──────
                                        ↑
-                              File exists! Race won! 🏆
+                              File exists! Race won! 
 ```
 
 **Tối ưu race condition:** Upload thêm **15 padding files** (~60KB mỗi file, valid JSON) để kéo dài thời gian server xử lý, mở rộng race window.
@@ -330,14 +345,14 @@ Server sẽ đọc file `/tmp/users/user/settings`.
 - Upload với `account: "user"`, filename `settings`
 - `os.path.join("/tmp/users", "user")` → `/tmp/users/user/` (thư mục)
 - `os.makedirs("/tmp/users/user/", exist_ok=True)` tạo thư mục
-- File được ghi vào `/tmp/users/user/settings` ✅
-- Account name `"user"` match regex `^[A-Za-z0-9_-]{1,64}$` ✅
+- File được ghi vào `/tmp/users/user/settings` 
+- Account name `"user"` match regex `^[A-Za-z0-9_-]{1,64}$` 
 
 **Các bước:**
 
 1. **Select account mới:** POST `/console/select` với `account=file:///tmp/users/`
 
-   > ⚠️ **Quan trọng:** Phải giữ nguyên session cookie từ Phase 1 (chứa `elevated=True`)! Nếu session bị reset, ta sẽ mất quyền elevated.
+   > **Quan trọng:** Phải giữ nguyên session cookie từ Phase 1 (chứa `elevated=True`)! Nếu session bị reset, ta sẽ mất quyền elevated.
 
 2. **Upload payload file:** POST `/upload` với file tên `settings`, nội dung:
    ```json
@@ -350,7 +365,7 @@ Server sẽ đọc file `/tmp/users/user/settings`.
    }
    ```
 
-3. **Race condition:** Đồng thời gọi GET `/console/export` để đọc file trước khi bị xóa → nhận FLAG 🏆
+3. **Race condition:** Đồng thời gọi GET `/console/export` để đọc file trước khi bị xóa → nhận FLAG 
 
 ---
 
@@ -537,12 +552,18 @@ while not stop2.is_set() and (time.time() - start) < 120:
     time.sleep(1)
 
 if flag_value:
-    print(f"[🏆] FLAG: {flag_value}")
+    print(f"FLAG: {flag_value}")
 else:
     print("[-] Failed, try again")
 ```
 
 ---
+
+<img width="385" height="117" alt="Screenshot 2026-09-12 174338" src="https://github.com/user-attachments/assets/bbfce4ca-a9d2-44f3-8eef-80e8eb046dda" />
+
+<img width="1917" height="847" alt="Screenshot 2026-09-12 174333" src="https://github.com/user-attachments/assets/5e4bb3b7-0fa8-42f7-adde-1bf0a44cd93e" />
+
+<img width="717" height="207" alt="Screenshot 2026-09-12 174644" src="https://github.com/user-attachments/assets/dce36fdb-759a-4cc1-b5bf-ecb95f704aa8" />
 
 ## Kết quả
 
@@ -571,7 +592,7 @@ else:
 [!!!] GOT FLAG! (upload=174, check=358)
 
 ============================================================
-  🏆 FLAG: K17{why_s0_blu3?}
+  FLAG: K17{why_s0_blu3?}
 ============================================================
 ```
 

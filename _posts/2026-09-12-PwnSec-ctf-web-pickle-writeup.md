@@ -16,29 +16,6 @@ tags: [web, PwnSec]
 
 <img width="1425" height="85" alt="Screenshot 2026-09-12 232119" src="https://github.com/user-attachments/assets/db08f9d9-2e2e-4858-9e71-7085b5135fed" />
 
----
-
-## Table of Contents
-
-- [Challenge Overview](#challenge-overview)
-- [Source Code Analysis](#source-code-analysis)
-  - [webapp.py — Main Application](#webappy--main-application)
-  - [sessionstore.py — Whitelisted Module](#sessionstorepy--whitelisted-module)
-  - [Security Layers](#security-layers)
-- [Vulnerability Analysis](#vulnerability-analysis)
-  - [Layer 1: BANNED_PATTERNS — The Impossible Filter?](#layer-1-banned_patterns--the-impossible-filter)
-  - [Layer 2: REDUCE Disassembly Check](#layer-2-reduce-disassembly-check)
-  - [Layer 3: RestrictedUnpickler](#layer-3-restrictedunpickler)
-- [Exploitation Strategy](#exploitation-strategy)
-  - [Key Insight: Remove the STOP Opcode](#key-insight-remove-the-stop-opcode)
-  - [Accessing Built-in Functions](#accessing-built-in-functions)
-  - [The Capsule + Render Trick](#the-capsule--render-trick)
-  - [Building the Filename](#building-the-filename)
-  - [Final Chain](#final-chain)
-- [Exploit Code](#exploit-code)
-- [Result](#result)
-
----
 
 ## Challenge Overview
 
